@@ -1,0 +1,244 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 10% 7%;
+    --foreground: 240 5% 95%;
+    --card: 240 10% 12%;
+    --card-foreground: 240 5% 95%;
+    --popover: 240 10% 12%;
+    --popover-foreground: 240 5% 95%;
+    --primary: 262 83% 57%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 20%;
+    --secondary-foreground: 240 5% 95%;
+    --muted: 240 5% 20%;
+    --muted-foreground: 240 5% 60%;
+    --accent: 191 97% 43%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 5% 22%;
+    --input: 240 5% 18%;
+    --ring: 262 83% 57%;
+    --radius: 0.75rem;
+  }
+
+  * { @apply border-border; }
+  
+  html { scroll-behavior: smooth; }
+
+  body {
+    @apply bg-arena-dark text-foreground font-body antialiased;
+    background-image: 
+      radial-gradient(ellipse at 10% 0%, rgba(124,58,237,0.15) 0%, transparent 50%),
+      radial-gradient(ellipse at 90% 100%, rgba(6,182,212,0.1) 0%, transparent 50%);
+    min-height: 100vh;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { @apply bg-arena-dark; }
+  ::-webkit-scrollbar-thumb { @apply bg-arena-border rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-arena-purple; }
+
+  ::selection { @apply bg-arena-purple/40 text-white; }
+}
+
+@layer components {
+  .arena-card {
+    @apply bg-arena-card border border-arena-border rounded-2xl;
+    background-image: linear-gradient(135deg, rgba(124,58,237,0.05) 0%, rgba(6,182,212,0.02) 100%);
+  }
+
+  .glow-text {
+    text-shadow: 0 0 20px rgba(124,58,237,0.8), 0 0 40px rgba(124,58,237,0.4);
+  }
+
+  .glow-text-cyan {
+    text-shadow: 0 0 20px rgba(6,182,212,0.8), 0 0 40px rgba(6,182,212,0.4);
+  }
+
+  .btn-primary {
+    @apply relative overflow-hidden bg-arena-purple hover:bg-arena-purple/90 text-white font-semibold 
+           px-6 py-3 rounded-xl transition-all duration-200 
+           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+    box-shadow: 0 4px 20px rgba(124,58,237,0.4);
+  }
+
+  .btn-primary:hover { box-shadow: 0 4px 30px rgba(124,58,237,0.6); }
+
+  .btn-secondary {
+    @apply bg-arena-border/50 hover:bg-arena-border text-foreground font-semibold 
+           px-6 py-3 rounded-xl border border-arena-border transition-all duration-200 
+           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-danger {
+    @apply bg-red-600/20 hover:bg-red-600/30 text-red-400 font-semibold 
+           px-6 py-3 rounded-xl border border-red-600/30 transition-all duration-200;
+  }
+
+  .input-field {
+    @apply w-full bg-arena-dark border border-arena-border rounded-xl px-4 py-3
+           text-foreground placeholder-muted-foreground
+           focus:outline-none focus:ring-2 focus:ring-arena-purple/50 focus:border-arena-purple
+           transition-all duration-200;
+  }
+
+  .player-card {
+    @apply flex items-center gap-3 p-3 rounded-xl bg-arena-dark/50 
+           border border-arena-border/50 transition-all duration-200;
+  }
+
+  .player-card.drawing {
+    @apply border-arena-yellow/50 bg-arena-yellow/5;
+    box-shadow: 0 0 15px rgba(245,158,11,0.2);
+  }
+
+  .player-card.guessed {
+    @apply border-arena-green/50 bg-arena-green/5;
+  }
+
+  .chat-message { @apply text-sm leading-relaxed; }
+  .chat-message.system { @apply text-muted-foreground italic; }
+  .chat-message.correct { @apply text-arena-green font-semibold; }
+  .chat-message.close { @apply text-arena-yellow; }
+
+  .canvas-tool-btn {
+    @apply w-9 h-9 rounded-lg flex items-center justify-center 
+           border border-arena-border transition-all duration-150
+           hover:border-arena-purple/50 hover:bg-arena-purple/10;
+  }
+
+  .canvas-tool-btn.active {
+    @apply border-arena-purple bg-arena-purple/20 text-arena-purple;
+  }
+
+  .rank-badge {
+    @apply text-xs font-bold px-2 py-0.5 rounded-full;
+  }
+
+  .rank-Novice { @apply bg-gray-500/20 text-gray-400; }
+  .rank-Skilled { @apply bg-blue-500/20 text-blue-400; }
+  .rank-Expert { @apply bg-arena-purple/20 text-purple-400; }
+  .rank-Master { @apply bg-arena-pink/20 text-pink-400; }
+  .rank-Legend { @apply bg-arena-yellow/20 text-yellow-400; }
+
+  .score-pop {
+    @apply absolute pointer-events-none font-bold text-arena-green text-lg;
+    animation: scorePop 0.8s ease-out forwards;
+  }
+
+  .timer-critical { @apply text-red-400 animate-pulse; }
+  .timer-warning { @apply text-arena-yellow; }
+  .timer-normal { @apply text-arena-cyan; }
+
+  .word-blank {
+    @apply inline-block w-7 h-0.5 bg-foreground/60 mx-0.5 align-middle;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #7C3AED, #06B6D4);
+  }
+
+  .text-gradient-pink {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #EC4899, #F59E0B);
+  }
+
+  .border-gradient {
+    border: 1px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .glass {
+    @apply backdrop-blur-md bg-white/5;
+  }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+/* Confetti particles */
+.confetti-particle {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  animation: confetti 2s ease-out forwards;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Canvas cursor */
+.canvas-draw-cursor { cursor: crosshair; }
+.canvas-erase-cursor { cursor: cell; }
+.canvas-fill-cursor { cursor: copy; }
+
+/* Word choice buttons */
+.word-choice-btn {
+  @apply relative overflow-hidden px-6 py-3 rounded-xl font-display text-lg
+         border-2 transition-all duration-200 active:scale-95;
+}
+
+.word-choice-btn:nth-child(1) { @apply border-arena-purple/50 text-purple-300 hover:bg-arena-purple/20; }
+.word-choice-btn:nth-child(2) { @apply border-arena-cyan/50 text-cyan-300 hover:bg-arena-cyan/20; }
+.word-choice-btn:nth-child(3) { @apply border-arena-pink/50 text-pink-300 hover:bg-arena-pink/20; }
+
+/* Spectator badge */
+.spectator-badge {
+  @apply text-xs bg-gray-500/20 text-gray-400 px-2 py-0.5 rounded-full border border-gray-500/30;
+}
+
+/* Room list hover */
+.room-row:hover { @apply bg-arena-purple/5; }
+
+/* ── Raw keyframes for inline animation styles ─────────────────────── */
+/* (Tailwind keyframes only work as utility classes; inline styles need these) */
+
+@keyframes scorePop {
+  0%   { transform: scale(1)   translateY(0px);   opacity: 1; }
+  40%  { transform: scale(1.6) translateY(-20px);  opacity: 1; }
+  100% { transform: scale(0.8) translateY(-48px);  opacity: 0; }
+}
+
+@keyframes confetti {
+  0%   { transform: translateY(0)     rotate(0deg);   opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+@keyframes slideDown {
+  0%   { transform: translateY(-16px); opacity: 0; }
+  100% { transform: translateY(0);     opacity: 1; }
+}
+
+@keyframes bounceIn {
+  0%   { transform: scale(0.5); opacity: 0; }
+  60%  { transform: scale(1.1); }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+@keyframes slideUp {
+  0%   { transform: translateY(20px); opacity: 0; }
+  100% { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes fadeIn {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0);     }
+  50%       { transform: translateY(-10px); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 5px rgba(124,58,237,0.5); }
+  50%       { box-shadow: 0 0 20px rgba(124,58,237,0.8), 0 0 40px rgba(124,58,237,0.3); }
+}
