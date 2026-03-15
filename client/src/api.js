@@ -2,7 +2,8 @@ import axios from "axios";
 import { useAuthStore } from "./store";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "/api",
+  baseURL:
+    import.meta.env.VITE_SERVER_URL + (import.meta.env.VITE_API_URL || "/api"),
   timeout: 10000,
 });
 
@@ -19,8 +20,10 @@ api.interceptors.response.use(
       useAuthStore.getState().clearAuth();
       window.location.href = "/";
     }
-    return Promise.reject(err.response?.data?.error || err.message || "Something went wrong");
-  }
+    return Promise.reject(
+      err.response?.data?.error || err.message || "Something went wrong",
+    );
+  },
 );
 
 // Auth

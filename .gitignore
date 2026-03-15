@@ -5,12 +5,3 @@ dist/
 .DS_Store
 .vscode/
 coverage/
-
-# Ignore build output
-build/
-
-# Ignore local environment files
-server/.env
-client/.env
-
-package.json
