@@ -28,21 +28,28 @@ function App() {
   // Validate stored token on mount
   useEffect(() => {
     if (token) {
-      authAPI.me()
+      authAPI
+        .me()
         .then(({ user }) => setAuth(user, token))
         .catch(() => clearAuth());
     }
+
+    // Check server health on app load
+    healthAPI.check().catch(() => console.warn("Server health check failed"));
   }, []);
 
   return (
     <>
       <Routes>
-        <Route path="/" element={
-          <>
-            <RoomRedirect />
-            <HomePage />
-          </>
-        } />
+        <Route
+          path="/"
+          element={
+            <>
+              <RoomRedirect />
+              <HomePage />
+            </>
+          }
+        />
         <Route path="/game/:roomCode" element={<GamePage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

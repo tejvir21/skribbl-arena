@@ -2,7 +2,7 @@ import axios from "axios";
 import { useAuthStore } from "./store";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "/api",
+  baseURL: import.meta.env.VITE_SERVER_URL + import.meta.env.VITE_API_URL || "/api",
   timeout: 10000,
 });
 
@@ -48,6 +48,11 @@ export const leaderAPI = {
 export const userAPI = {
   get: (username) => api.get(`/users/${username}`),
   update: (data) => api.patch("/users/me", data),
+};
+
+// Health check
+export const healthAPI = {
+  check: () => api.get("/health"),
 };
 
 export default api;
