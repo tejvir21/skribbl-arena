@@ -61,8 +61,16 @@ export default function GameHeader({ roomCode, onLeave }) {
           {phase === "waiting" && (
             <p className="font-display text-base text-gradient">Waiting for players…</p>
           )}
-          {phase === "starting" && (
+          {phase === "starting" && !drawerName && (
             <p className="font-display text-base text-arena-yellow animate-pulse">Get Ready!</p>
+          )}
+          {phase === "starting" && drawerName && (
+            <p className="text-xs text-muted-foreground truncate">
+              Round <span className="text-foreground font-semibold">{currentRound}/{totalRounds}</span>
+              {" · "}
+              <span className="text-arena-purple font-semibold">🤔 {drawerName}</span>
+              {" "}is choosing a word…
+            </p>
           )}
           {phase === "roundEnd" && (
             <p className="font-display text-base text-arena-cyan">Round over!</p>

@@ -1,29 +1,44 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useGameStore } from "../../store";
 
 const MEDALS = ["🥇","🥈","🥉"];
 
 export default function RoundEndOverlay({ data }) {
-  const currentRound = useGameStore((s) => s.currentRound);
-  const totalRounds  = useGameStore((s) => s.totalRounds);
+  // Snapshot the round/total at mount — don't re-read them live so the display
+  // doesn't jump when game:newRound fires and updates currentRound mid-display.
+  const [round]       = useState(() => useGameStore.getState().currentRound);
+  const [totalRounds] = useState(() => useGameStore.getState().totalRounds);
   const [countdown, setCountdown] = useState(5);
+  const dismissed = useRef(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setCountdown((c) => {
-        if (c <= 1) { clearInterval(interval); return 0; }
+        if (c <= 1) {
+          clearInterval(interval);
+          // Self-dismiss: clear roundResults so GamePage removes the overlay
+          if (!dismissed.current) {
+            dismissed.current = true;
+            useGameStore.setState({ roundResults: null });
+          }
+          return 0;
+        }
         return c - 1;
       });
     }, 1000);
+
     return () => {
       clearInterval(interval);
-      // Clear roundResults when overlay unmounts so it doesn't linger
-      useGameStore.setState({ roundResults: null });
+      // On unmount (e.g. navigating away), clean up without double-setState
+      if (!dismissed.current) {
+        dismissed.current = true;
+        useGameStore.setState({ roundResults: null });
+      }
     };
   }, []);
 
   const sorted = [...(data.players || [])].sort((a, b) => b.score - a.score);
-  const isLastRound = currentRound >= totalRounds;
+  const isLastRound = round >= totalRounds;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm animate-fade-in">
@@ -45,7 +60,7 @@ export default function RoundEndOverlay({ data }) {
                 {data.word}
               </h2>
               <p className="text-muted-foreground text-xs mt-2">
-                Round {currentRound} / {totalRounds}
+                Round {round} / {totalRounds}
               </p>
             </>
           )}

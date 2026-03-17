@@ -2,15 +2,12 @@ import { io } from "socket.io-client";
 import { useAuthStore, useGameStore, useChatStore, useNotifStore } from "./store";
 
 let socket = null;
-// Prevents double-registration of listeners (React StrictMode runs effects twice)
 let listenersRegistered = false;
 
 export const getSocket = () => socket;
 
 export const initSocket = () => {
   const token = useAuthStore.getState().token;
-
-  // If socket already exists (even if not yet connected), reuse it
   if (socket) return socket;
 
   socket = io(import.meta.env.VITE_SERVER_URL || "", {
@@ -20,7 +17,6 @@ export const initSocket = () => {
     reconnectionDelay: 1000,
   });
 
-  // Guard: register listeners only once per socket instance
   if (listenersRegistered) return socket;
   listenersRegistered = true;
 
@@ -30,23 +26,19 @@ export const initSocket = () => {
   });
 
   socket.on("disconnect", (reason) => {
-    console.log("🔌 Socket disconnected:", reason);
     if (reason === "io server disconnect") socket.connect();
   });
 
-  socket.on("connect_error", (err) => {
-    console.error("Socket connect error:", err.message);
+  socket.on("connect_error", () => {
     useNotifStore.getState().addNotif({ type: "error", message: "Connection error. Retrying…" });
   });
 
   // ── ROOM EVENTS ────────────────────────────────────────────────────
   socket.on("room:playerJoined", ({ players }) => {
-    // Replace full list — never append — to stay in sync with server truth
     useGameStore.getState().updatePlayers(players);
   });
 
-  socket.on("room:playerLeft", ({ userId, username, players }) => {
-    // Just update the player list. The server emits a chat:message separately.
+  socket.on("room:playerLeft", ({ players }) => {
     useGameStore.getState().updatePlayers(players);
   });
 
@@ -86,13 +78,13 @@ export const initSocket = () => {
       players,
       phase: "starting",
       hint: "",
-      roundResults: null,  // dismiss RoundEndOverlay
+      // Do NOT clear roundResults — RoundEndOverlay manages its own dismissal
       gameResults: null,
     });
     useChatStore.getState().addMessage({
       id: `round-${round}-${Date.now()}`,
       type: "system",
-      message: `✏️ Round ${round}/${totalRounds} — ${drawer} is drawing!`,
+      message: `🤔 Round ${round}/${totalRounds} — ${drawer} is choosing a word…`,
     });
   });
 
@@ -108,6 +100,12 @@ export const initSocket = () => {
   socket.on("game:roundStarted", (data) => {
     useGameStore.getState().setDrawingPhase(data);
     useGameStore.getState().clearWordChoices();
+    // Update chat to reflect drawing started
+    useChatStore.getState().addMessage({
+      id: `drawing-${data.round}-${Date.now()}`,
+      type: "system",
+      message: `✏️ ${data.drawer} started drawing!`,
+    });
   });
 
   socket.on("game:drawingWord", ({ word }) => {
@@ -132,8 +130,8 @@ export const initSocket = () => {
     useGameStore.getState().updateScores(players);
   });
 
-  socket.on("game:roundEnd", ({ word, players, reason }) => {
-    useGameStore.getState().setRoundResults({ word, players, reason });
+  socket.on("game:roundEnd", ({ word, players, reason, nobodyGuessed }) => {
+    useGameStore.getState().setRoundResults({ word, players, reason, nobodyGuessed });
     useGameStore.getState().updateScores(players);
   });
 
@@ -161,7 +159,6 @@ export const disconnectSocket = () => {
   }
 };
 
-// Convenience emitter — silently drops if not connected
 export const emit = (event, data, callback) => {
   if (!socket?.connected) return;
   if (callback) socket.emit(event, data, callback);

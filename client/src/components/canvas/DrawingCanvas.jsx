@@ -40,7 +40,9 @@ export default function DrawingCanvas({ canDraw }) {
   const wordBlanks = useGameStore((s) => s.wordBlanks);
   const actualWord = useGameStore((s) => s.actualWord);
   const hint       = useGameStore((s) => s.hint);
-  const phase      = useGameStore((s) => s.phase);
+  const phase           = useGameStore((s) => s.phase);
+  const currentRound    = useGameStore((s) => s.currentRound);
+  const currentDrawerId = useGameStore((s) => s.currentDrawerId);
 
   // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -61,10 +63,32 @@ export default function DrawingCanvas({ canDraw }) {
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
-  // Reset canvas at the start of every new drawing phase (for ALL players)
-  const prevPhase = useRef(null);
+  // Reset canvas ONLY when a genuinely new round starts.
+  // Key insight: we identify a "new round" by round number + drawer ID changing together.
+  //
+  //   New round starts:   key changes  → canvas clears ✓
+  //   Reconnect restore:  same round/drawer → key unchanged → canvas NOT cleared ✓
+  //
+  // Initialize prevRoundKey from current store state at mount time.
+  // If a game is already in progress (reconnect), pre-seed the key so the canvas
+  // does NOT clear when phase transitions to "drawing" for the already-running round.
+  // We seed it whenever a drawer is assigned — covers both "starting" and "drawing" phases.
+  const initRoundKey = () => {
+    const s = useGameStore.getState();
+    if (s.currentDrawerId && s.currentRound > 0) {
+      return `${s.currentRound}-${s.currentDrawerId}`;
+    }
+    return null;
+  };
+  const prevRoundKey = useRef(initRoundKey());
   useEffect(() => {
-    if (phase === "drawing" && prevPhase.current !== "drawing") {
+    if (phase !== "drawing") return;
+
+    // Build a stable key for this specific round
+    const roundKey = `${currentRound}-${currentDrawerId}`;
+
+    if (roundKey !== prevRoundKey.current) {
+      prevRoundKey.current = roundKey;
       const ctx    = ctxRef.current;
       const canvas = canvasRef.current;
       if (ctx && canvas) {
@@ -73,21 +97,25 @@ export default function DrawingCanvas({ canDraw }) {
         histIdxRef.current = -1;
         pushHistory(ctx, canvas);
         setCanUndo(false);
-        remoteQ.current = []; // flush any stale remote events
+        remoteQ.current = []; // flush stale remote events from previous round
       }
     }
-    prevPhase.current = phase;
-  }, [phase]);
+  }, [phase, currentRound, currentDrawerId]);
 
   // ── Socket listeners ───────────────────────────────────────────────────────
   useEffect(() => {
     const socket = getSocket();
     if (!socket) return;
 
-    const onDraw  = (data) => { if (!canDraw) remoteQ.current.push(data); };
-    const onClear = ()     => {
+    const onDraw  = (data) => {
+      // Only queue remote draw events for guessers, not the active drawer
+      // (drawer already sees their own strokes on canvas)
+      if (!canDraw) remoteQ.current.push(data);
+    };
+    const onClear = () => {
       if (canDraw) return;
       const ctx = ctxRef.current; const canvas = canvasRef.current;
+      remoteQ.current = []; // flush queue before clearing
       clearCanvas(ctx, canvas);
       pushHistory(ctx, canvas);
     };
@@ -96,14 +124,58 @@ export default function DrawingCanvas({ canDraw }) {
       const canvas = canvasRef.current;
       floodFill(ctxRef.current, canvas, Math.round(x * canvas.width), Math.round(y * canvas.height), fc);
     };
+    // Flush the remoteQ as soon as undo is signalled — canvas:replay arrives ~0ms later
+    // but without this flush, the rAF loop can drain stale stroke events in between
+    const onUndo = () => {
+      remoteQ.current = [];
+    };
 
-    socket.on("canvas:draw",  onDraw);
-    socket.on("canvas:clear", onClear);
-    socket.on("canvas:fill",  onFill);
+    // Replay all strokes when reconnecting mid-round OR after an undo.
+    // CRITICAL: flush remoteQ first and after, otherwise stale buffered draw events
+    // from the undone stroke will be re-applied by the rAF loop on the next frame.
+    const onReplay = ({ strokes }) => {
+      const ctx    = ctxRef.current;
+      const canvas = canvasRef.current;
+      if (!ctx || !canvas) return;
+
+      // Flush any buffered remote events BEFORE replaying — these are stale
+      remoteQ.current = [];
+
+      // Clear and replay
+      clearCanvas(ctx, canvas);
+
+      if (strokes?.length) {
+        for (const stroke of strokes) {
+          if (stroke.type === "fill") {
+            floodFill(ctx, canvas,
+              Math.round(stroke.x * canvas.width),
+              Math.round(stroke.y * canvas.height),
+              stroke.color
+            );
+          } else {
+            applyRemote(stroke);
+          }
+        }
+      }
+
+      // Flush again — applyRemote can trigger more queuing indirectly
+      remoteQ.current = [];
+
+      // Save replayed state to history
+      pushHistory(ctx, canvas);
+    };
+
+    socket.on("canvas:draw",   onDraw);
+    socket.on("canvas:clear",  onClear);
+    socket.on("canvas:fill",   onFill);
+    socket.on("canvas:undo",   onUndo);
+    socket.on("canvas:replay", onReplay);
     return () => {
-      socket.off("canvas:draw",  onDraw);
-      socket.off("canvas:clear", onClear);
-      socket.off("canvas:fill",  onFill);
+      socket.off("canvas:draw",   onDraw);
+      socket.off("canvas:clear",  onClear);
+      socket.off("canvas:fill",   onFill);
+      socket.off("canvas:undo",   onUndo);
+      socket.off("canvas:replay", onReplay);
     };
   }, [canDraw]);
 
@@ -244,6 +316,9 @@ export default function DrawingCanvas({ canDraw }) {
     histIdxRef.current--;
     ctxRef.current.putImageData(historyRef.current[histIdxRef.current], 0, 0);
     setCanUndo(histIdxRef.current > 0);
+    // Tell server to undo the last stroke group and replay to all other players
+    const socket = getSocket();
+    if (socket) socket.emit("canvas:undo");
   };
 
   const handleDownload = () => {

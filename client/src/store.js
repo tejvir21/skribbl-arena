@@ -65,7 +65,11 @@ export const useGameStore = create((set, get) => ({
     myPlayerId: data.playerId || get().myPlayerId,
     phase: data.gameState?.phase || "waiting",
     currentRound: data.gameState?.currentRound || 0,
-    totalRounds: data.settings?.rounds || 3,
+    totalRounds: data.gameState?.totalRounds || data.settings?.rounds || 3,
+    currentDrawerId: data.gameState?.currentDrawer || null,
+    drawTime: data.gameState?.drawTime || data.settings?.drawTime || 80,
+    wordLength: data.gameState?.wordLength || 0,
+    hint: data.gameState?.hintsRevealed || "",
   }),
 
   setPhase: (phase) => set({ phase }),

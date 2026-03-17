@@ -11,6 +11,7 @@ import WordChoiceOverlay from "../components/game/WordChoiceOverlay";
 import RoundEndOverlay from "../components/game/RoundEndOverlay";
 import GameEndOverlay from "../components/game/GameEndOverlay";
 import WaitingRoom from "../components/game/WaitingRoom";
+import ChoosingWordBanner from "../components/game/ChoosingWordBanner";
 import SpectatorBanner from "../components/game/SpectatorBanner";
 import Confetti from "../components/ui/Confetti";
 import ScorePop from "../components/ui/ScorePop";
@@ -27,26 +28,37 @@ export default function GamePage() {
   const { clearMessages } = useChatStore();
   const { addNotif } = useNotifStore();
 
-  // Reactive drawer/host detection via selectors
   const amDrawer = useIsDrawer();
-  const isHost = useIsHost();
+  const isHost   = useIsHost();
 
   const [connecting, setConnecting] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
   const hasJoined = useRef(false);
 
+  // Persist room code in sessionStorage so page reload can rejoin
   useEffect(() => {
-    if (!user) { navigate("/"); return; }
+    if (roomCode) {
+      sessionStorage.setItem("arena_room", roomCode);
+    }
+    return () => {
+      // Only clear if truly navigating away (not a reload)
+      // sessionStorage persists through reload, so don't clear on unmount
+    };
+  }, [roomCode]);
 
-    // In React StrictMode the effect runs twice (mount → unmount → mount).
-    // hasJoined.current blocks the duplicate room:join emit.
+  useEffect(() => {
+    if (!user) {
+      navigate("/");
+      return;
+    }
+
+    // Prevent double-join in React StrictMode (double effect invoke)
     if (hasJoined.current) return;
     hasJoined.current = true;
 
     const socket = initSocket();
     clearMessages();
 
-    // Wait for socket to connect before joining
     const doJoin = () => {
       socket.emit("room:join", {
         roomCode,
@@ -56,11 +68,15 @@ export default function GamePage() {
         setConnecting(false);
         if (response?.error) {
           addNotif({ type: "error", message: response.error });
+          sessionStorage.removeItem("arena_room");
           navigate("/");
           return;
         }
         if (response?.success) {
           setRoom({ ...response.room, playerId: response.playerId });
+          if (response.isReconnect) {
+            addNotif({ type: "success", message: "Reconnected to game!" });
+          }
         }
       });
     };
@@ -72,12 +88,11 @@ export default function GamePage() {
     }
 
     return () => {
-      // Only disconnect on real unmount (not StrictMode double-invoke)
-      // hasJoined stays true so the second mount skips the join above
       emit("room:leave");
       leaveRoom();
       clearMessages();
       disconnectSocket();
+      sessionStorage.removeItem("arena_room");
       hasJoined.current = false;
     };
   }, []);
@@ -89,13 +104,13 @@ export default function GamePage() {
     }
   }, [gameResults, myPlayerId]);
 
-  const handleStartGame = () => emit("game:start");
-
+  const handleStartGame  = () => emit("game:start");
   const handleChooseWord = (word) => {
     emit("game:wordChosen", { word });
     useGameStore.getState().clearWordChoices();
   };
 
+  // ── Connecting / loading screen ──────────────────────────────────────
   if (connecting) {
     return (
       <div className="min-h-screen bg-arena-gradient flex items-center justify-center">
@@ -103,7 +118,8 @@ export default function GamePage() {
           <div className="relative w-20 h-20 mx-auto mb-6">
             <div className="absolute inset-0 border-4 border-arena-purple/20 rounded-full" />
             <div className="absolute inset-0 border-4 border-t-arena-purple border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin" />
-            <div className="absolute inset-3 border-4 border-t-arena-cyan border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin" style={{ animationDirection: "reverse", animationDuration: "0.7s" }} />
+            <div className="absolute inset-3 border-4 border-t-arena-cyan border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"
+              style={{ animationDirection: "reverse", animationDuration: "0.7s" }} />
             <div className="absolute inset-0 flex items-center justify-center text-2xl">🎨</div>
           </div>
           <p className="font-display text-2xl text-gradient mb-1">Joining Room</p>
@@ -113,9 +129,7 @@ export default function GamePage() {
     );
   }
 
-  // Show canvas once drawing starts (or when a drawer is assigned during starting phase)
-  const inGame = phase === "drawing" || (phase === "starting" && !!currentDrawerId);
-
+  const inGame = phase === "drawing" || phase === "roundEnd" || (phase === "starting" && !!currentDrawerId);
 
   return (
     <div className="min-h-screen bg-arena-gradient flex flex-col">
@@ -124,7 +138,7 @@ export default function GamePage() {
 
       <GameHeader
         roomCode={roomCode}
-        onLeave={() => { emit("room:leave"); leaveRoom(); navigate("/"); }}
+        onLeave={() => { emit("room:leave"); leaveRoom(); sessionStorage.removeItem("arena_room"); navigate("/"); }}
       />
 
       {isSpectator && <SpectatorBanner />}
@@ -135,9 +149,7 @@ export default function GamePage() {
         </aside>
 
         <main className="flex-1 min-w-0">
-          {inGame ? (
-            <DrawingCanvas canDraw={amDrawer && !isSpectator} />
-          ) : (
+          {!inGame ? (
             <WaitingRoom
               roomCode={roomCode}
               isHost={isHost}
@@ -145,6 +157,12 @@ export default function GamePage() {
               settings={settings}
               players={players}
             />
+          ) : phase === "starting" && !!currentDrawerId ? (
+            // Someone is choosing a word — show the waiting banner
+            <ChoosingWordBanner />
+          ) : (
+            // Drawing in progress or round just ended — show canvas
+            <DrawingCanvas canDraw={amDrawer && !isSpectator} />
           )}
         </main>
 
