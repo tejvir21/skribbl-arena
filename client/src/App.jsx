@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { useAuthStore } from "./store";
-import { authAPI } from "./api";
+import { authAPI, healthAPI } from "./api";
 import HomePage from "./pages/HomePage";
 import GamePage from "./pages/GamePage";
 import LeaderboardPage from "./pages/LeaderboardPage";
