@@ -4,20 +4,33 @@ import EmojiPicker from "emoji-picker-react";
 import { useChatStore, useGameStore, useAuthStore } from "../../store";
 import { emit } from "../../socket";
 
-const QUICK_EMOJIS = ["😂","😮","🔥","👏","❤️","💀","🤔","✅","😍","🎉","😭","🤯"];
+const QUICK_EMOJIS = [
+  "😂",
+  "😮",
+  "🔥",
+  "👏",
+  "❤️",
+  "💀",
+  "🤔",
+  "✅",
+  "😍",
+  "🎉",
+  "😭",
+  "🤯",
+];
 
 export default function ChatPanel({ isDrawer, isSpectator }) {
-  const [input,      setInput]      = useState("");
+  const [input, setInput] = useState("");
   const [showPicker, setShowPicker] = useState(false);
 
   const messages = useChatStore((s) => s.messages);
-  const markRead  = useChatStore((s) => s.markRead);
-  const phase     = useGameStore((s) => s.phase);
-  const user      = useAuthStore((s) => s.user);
+  const markRead = useChatStore((s) => s.markRead);
+  const phase = useGameStore((s) => s.phase);
+  const user = useAuthStore((s) => s.user);
 
-  const bottomRef  = useRef(null);
-  const inputRef   = useRef(null);
-  const pickerRef  = useRef(null);
+  const bottomRef = useRef(null);
+  const inputRef = useRef(null);
+  const pickerRef = useRef(null);
 
   // Auto-scroll to bottom on new message
   useEffect(() => {
@@ -25,7 +38,9 @@ export default function ChatPanel({ isDrawer, isSpectator }) {
   }, [messages]);
 
   // Mark as read when panel is visible
-  useEffect(() => { markRead(); }, [messages.length]);
+  useEffect(() => {
+    markRead();
+  }, [messages.length]);
 
   // Close emoji picker on outside click
   useEffect(() => {
@@ -68,33 +83,34 @@ export default function ChatPanel({ isDrawer, isSpectator }) {
   };
 
   // Styles per message type
-  const msgStyle = (type) => ({
-    correct: "bg-arena-green/10 border-l-2 border-arena-green pl-2 rounded-r py-0.5",
-    system:  "text-muted-foreground italic text-xs",
-    close:   "text-arena-yellow font-medium text-xs",
-    chat:    "",
-  }[type] || "");
+  const msgStyle = (type) =>
+    ({
+      correct:
+        "bg-arena-green/10 border-l-2 border-arena-green pl-2 rounded-r py-0.5",
+      system: "text-muted-foreground italic text-xs",
+      close: "text-arena-yellow font-medium text-xs",
+      chat: "",
+    })[type] || "";
 
   const myId = String(user?._id || "");
 
   const placeholder = () => {
-    if (isSpectator)         return "Spectating…";
+    if (isSpectator) return "Spectating…";
     if (phase !== "drawing") return "Say something…";
-    if (isDrawer)            return "Chat (no spoilers!)";
+    if (isDrawer) return "Chat (no spoilers!)";
     return "Type your guess…";
   };
 
   return (
-    <div className="arena-card flex flex-col h-full min-h-[400px] lg:min-h-0 relative overflow-hidden">
-
+    <div className="arena-card flex flex-col max-h-[85dvh] min-h-[400px] lg:min-h-0 relative overflow-hidden overflow-y-auto">
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-arena-border/50 flex-shrink-0">
+      <div className="flex items-center flex-shrink-0 gap-2 px-4 py-3 border-b border-arena-border/50">
         <MessageSquare size={15} className="text-arena-cyan" />
-        <span className="font-semibold text-sm">
+        <span className="text-sm font-semibold">
           {phase === "drawing" && !isDrawer ? "Guess the Word!" : "Chat"}
         </span>
         {phase === "drawing" && !isDrawer && (
-          <span className="ml-auto flex items-center gap-1 text-xs text-arena-yellow">
+          <span className="flex items-center gap-1 ml-auto text-xs text-arena-yellow">
             <span className="w-1.5 h-1.5 rounded-full bg-arena-yellow animate-pulse" />
             Guessing active
           </span>
@@ -104,7 +120,7 @@ export default function ChatPanel({ isDrawer, isSpectator }) {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 no-scrollbar">
         {messages.length === 0 && (
-          <p className="text-center text-muted-foreground text-xs py-10 opacity-40 select-none">
+          <p className="py-10 text-xs text-center select-none text-muted-foreground opacity-40">
             Messages appear here…
           </p>
         )}
@@ -117,12 +133,20 @@ export default function ChatPanel({ isDrawer, isSpectator }) {
               <span>{msg.message}</span>
             ) : (
               <>
-                <span className={`font-semibold text-xs mr-1 ${
-                  String(msg.userId) === myId ? "text-arena-cyan" : "text-muted-foreground"
-                }`}>
+                <span
+                  className={`font-semibold text-xs mr-1 ${
+                    String(msg.userId) === myId
+                      ? "text-arena-cyan"
+                      : "text-muted-foreground"
+                  }`}
+                >
                   {msg.username}:
                 </span>
-                <span className={msg.type === "correct" ? "text-arena-green font-medium" : ""}>
+                <span
+                  className={
+                    msg.type === "correct" ? "text-arena-green font-medium" : ""
+                  }
+                >
                   {msg.message}
                 </span>
               </>
@@ -139,7 +163,7 @@ export default function ChatPanel({ isDrawer, isSpectator }) {
             key={emoji}
             onClick={() => sendQuickEmoji(emoji)}
             disabled={isSpectator}
-            className="text-base hover:scale-125 active:scale-95 transition-transform disabled:opacity-30 leading-none"
+            className="text-base leading-none transition-transform hover:scale-125 active:scale-95 disabled:opacity-30"
             title={emoji}
           >
             {emoji}
@@ -149,7 +173,7 @@ export default function ChatPanel({ isDrawer, isSpectator }) {
 
       {/* Input */}
       <div className="px-3 pb-3 pt-1.5 flex-shrink-0 relative">
-        <div className="flex items-center gap-1 bg-arena-dark border border-arena-border rounded-xl overflow-hidden focus-within:border-arena-purple/50 transition-colors">
+        <div className="flex items-center gap-1 overflow-hidden transition-colors border bg-arena-dark border-arena-border rounded-xl focus-within:border-arena-purple/50">
           <input
             ref={inputRef}
             value={input}
@@ -164,7 +188,7 @@ export default function ChatPanel({ isDrawer, isSpectator }) {
             type="button"
             onClick={() => setShowPicker((v) => !v)}
             disabled={isSpectator}
-            className="p-2 text-muted-foreground hover:text-arena-yellow transition-colors disabled:opacity-30 flex-shrink-0"
+            className="flex-shrink-0 p-2 transition-colors text-muted-foreground hover:text-arena-yellow disabled:opacity-30"
             title="Emoji picker"
           >
             <SmilePlus size={17} />
@@ -172,7 +196,7 @@ export default function ChatPanel({ isDrawer, isSpectator }) {
           <button
             onClick={handleSend}
             disabled={isSpectator || !input.trim()}
-            className="p-2 mr-1 text-arena-purple hover:text-arena-purple/70 transition-colors disabled:opacity-30 flex-shrink-0"
+            className="flex-shrink-0 p-2 mr-1 transition-colors text-arena-purple hover:text-arena-purple/70 disabled:opacity-30"
             title="Send (Enter)"
           >
             <Send size={17} />
@@ -181,7 +205,10 @@ export default function ChatPanel({ isDrawer, isSpectator }) {
 
         {/* Emoji picker popup */}
         {showPicker && (
-          <div ref={pickerRef} className="absolute bottom-full right-0 mb-2 z-50 shadow-2xl">
+          <div
+            ref={pickerRef}
+            className="absolute right-0 z-50 mb-2 shadow-2xl bottom-full"
+          >
             <EmojiPicker
               onEmojiClick={handleEmojiClick}
               theme="dark"
